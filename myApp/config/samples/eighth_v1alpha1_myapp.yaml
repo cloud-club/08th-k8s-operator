@@ -1,0 +1,10 @@
+apiVersion: eighth.cloudclub.com/v1alpha1
+kind: MyApp
+metadata:
+  labels:
+    app.kubernetes.io/name: learn
+    app.kubernetes.io/managed-by: kustomize
+  name: myapp-sample
+spec:
+  replicas: 2
+  username: "윤서율"
