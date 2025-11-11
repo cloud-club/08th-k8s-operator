@@ -200,11 +200,11 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 .PHONY: podman-buildx
 podman-buildx: ## Build and push podman image for the manager for multi-arch support (amd64, arm64)
 	@echo "Building and pushing amd64 image..."
-	podman build --platform linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 . || podman build --platform linux/amd64 --insecure-pull --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 .
-	podman push --tls-verify=false $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64
+	podman build --platform linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 .
+	@for i in 1 2 3; do podman push --tls-verify=false $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 && break || sleep 5; done
 	@echo "Building and pushing arm64 image..."
-	podman build --platform linux/arm64 --build-arg BUILDPLATFORM=linux/arm64 --build-arg TARGETPLATFORM=linux/arm64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 . || podman build --platform linux/arm64 --insecure-pull --build-arg BUILDPLATFORM=linux/arm64 --build-arg TARGETPLATFORM=linux/arm64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 .
-	podman push --tls-verify=false $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64
+	podman build --platform linux/arm64 --build-arg BUILDPLATFORM=linux/arm64 --build-arg TARGETPLATFORM=linux/arm64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 .
+	@for i in 1 2 3; do podman push --tls-verify=false $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 && break || sleep 5; done
 	@echo "Creating manifest..."
 	podman manifest create $(PODMAN_IMG) || true
 	@echo "Adding amd64 image to manifest..."
@@ -212,7 +212,7 @@ podman-buildx: ## Build and push podman image for the manager for multi-arch sup
 	@echo "Adding arm64 image to manifest..."
 	podman manifest add $(PODMAN_IMG) $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64
 	@echo "Pushing manifest to registry..."
-	podman manifest push --tls-verify=false $(PODMAN_IMG) $(PODMAN_IMG_BASE):$(PODMAN_TAG)
+	@for i in 1 2 3; do podman manifest push --tls-verify=false $(PODMAN_IMG) $(PODMAN_IMG_BASE):$(PODMAN_TAG) && break || sleep 5; done
 
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
