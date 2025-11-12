@@ -29,5 +29,6 @@ jobs:
       - name: Running Test e2e
         working-directory: myApp
         run: |
+          rm -rf bin/
           go mod tidy
           make test-e2e

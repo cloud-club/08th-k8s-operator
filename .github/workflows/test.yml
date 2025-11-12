@@ -20,5 +20,6 @@ jobs:
       - name: Running Tests
         working-directory: myApp
         run: |
+          rm -rf bin/
           go mod tidy
           make test
