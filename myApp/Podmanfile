@@ -1,0 +1,57 @@
+# Build the manager binary
+FROM --platform=${BUILDPLATFORM} docker.io/library/golang:1.24 AS builder
+SHELL ["/bin/bash", "-c"]
+ARG TARGETOS
+ARG TARGETARCH
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+
+# Set Go proxy to direct to avoid TLS certificate issues
+ENV GOPROXY=direct
+ENV GOSUMDB=off
+# TLS 검증 비활성화 환경변수들
+ENV GOINSECURE=*
+ENV GO111MODULE=on
+
+WORKDIR /workspace
+
+# SSL 인증서 업데이트 및 ca-certificates 설치
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
+
+# Git의 TLS 검증도 비활성화 (필요한 경우)
+RUN git config --global http.sslverify false
+
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+# TLS 검증 우회 옵션과 함께 다운로드 (재시도 로직 포함)
+# gomodules.xyz도 insecure로 명시 설정
+RUN for i in {1..5}; do GOINSECURE=gomodules.xyz,* go mod download && break || sleep 10; done
+
+# Copy the go source
+COPY cmd/main.go cmd/main.go
+COPY api/ api/
+COPY internal/ internal/
+
+# Build with retry logic for network timeout
+# the GOARCH has not a default value to allow the binary be built according to the host where the command
+# was called. For example, if we call make podman-build in a local env which has the Apple Silicon M1 SO
+# the podman BUILDPLATFORM arg will be linux/arm64 when for Apple x86 it will be linux/amd64. Therefore,
+# by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
+RUN set -e; \
+for i in 1 2 3; do \
+  echo "Build attempt $i/3..."; \
+  GOINSECURE=* CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go && echo "Build succeeded!" && break || { [ $i -lt 3 ] && sleep 15 || exit 1; }; \
+done
+
+# Use distroless as minimal base image to package the manager binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+FROM --platform=${TARGETPLATFORM} gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/manager .
+USER 65532:65532
+
+ENTRYPOINT ["/manager"]
+

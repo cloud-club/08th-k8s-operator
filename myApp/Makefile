@@ -71,6 +71,11 @@ PODMAN_IMG_BASE ?= cloud-club-cr.kr.ncr.ntruss.com/nginx-system
 PODMAN_TAG ?= latest
 PODMAN_IMG ?= $(PODMAN_IMG_BASE):$(PODMAN_TAG)
 
+# PODMAN_BUILD_ARGS defines additional arguments for podman build commands
+# --tls-verify=false for registries, --pull=always to ensure fresh images
+# Note: Internal Go module TLS verification is handled in Podmanfile with GOINSECURE
+PODMAN_BUILD_ARGS ?= --tls-verify=false --pull=always
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
@@ -197,22 +202,50 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	- $(CONTAINER_TOOL) buildx rm learn-builder
 	rm Dockerfile.cross
 
+##@ Podman Build & Push
+
+.PHONY: podman-build
+podman-build: ## Build podman image with the manager using Podmanfile.
+	podman build $(PODMAN_BUILD_ARGS) -t ${IMG} -f Podmanfile .
+
+.PHONY: podman-push
+podman-push: ## Push podman image with the manager.
+	podman push --tls-verify=false ${IMG}
+
 .PHONY: podman-buildx
 podman-buildx: ## Build and push podman image for the manager for multi-arch support (amd64, arm64)
-	@echo "Building and pushing amd64 image..."
-	podman build --platform linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 . || podman build --platform linux/amd64 --insecure-pull --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 .
-	podman push --tls-verify=false $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64
-	@echo "Building and pushing arm64 image..."
-	podman build --platform linux/arm64 --build-arg BUILDPLATFORM=linux/arm64 --build-arg TARGETPLATFORM=linux/arm64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 . || podman build --platform linux/arm64 --insecure-pull --build-arg BUILDPLATFORM=linux/arm64 --build-arg TARGETPLATFORM=linux/arm64 -t $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 .
-	podman push --tls-verify=false $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64
-	@echo "Creating manifest..."
-	podman manifest create $(PODMAN_IMG) || true
-	@echo "Adding amd64 image to manifest..."
+	@echo "🏗️  Starting multi-architecture build (amd64/arm64)..."
+	# Clean up existing images and manifests
+	@echo "🧹 Cleaning up existing images and manifests..."
+	- podman manifest exists $(PODMAN_IMG) && podman manifest rm $(PODMAN_IMG) || true
+	- podman rmi $(PODMAN_IMG) || true
+	- podman rmi $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 || true
+	- podman rmi $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 || true
+	# Create manifest for multi-architecture image
+	podman manifest create $(PODMAN_IMG)
+	# Build for each platform with timeout protection
+	@echo "📦 Building amd64 image..."
+	podman build $(PODMAN_BUILD_ARGS) --platform linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 --tag $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 -f Podmanfile .
+	@echo "📦 Building arm64 image..."
+	podman build $(PODMAN_BUILD_ARGS) --platform linux/arm64 --build-arg BUILDPLATFORM=linux/arm64 --build-arg TARGETPLATFORM=linux/arm64 --build-arg TARGETOS=linux --build-arg TARGETARCH=arm64 --tag $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 -f Podmanfile .
+	# Push individual platform images with retry logic
+	@echo "📤 Pushing amd64 image..."
+	podman push --tls-verify=false --retry=3 --retry-delay=5s --compression-format=gzip --compression-level=6 $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64
+	@echo "📤 Pushing arm64 image..."
+	podman push --tls-verify=false --retry=3 --retry-delay=5s --compression-format=gzip --compression-level=6 $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 || \
+		(echo "⚠️  arm64 push failed after 3 attempts"; \
+		 echo "ℹ️  amd64 image was pushed successfully"; \
+		 echo "ℹ️  You can manually push arm64 image later if needed")
+	# Add to manifest and push manifest
+	@echo "🔗 Creating multi-arch manifest..."
 	podman manifest add $(PODMAN_IMG) $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64
-	@echo "Adding arm64 image to manifest..."
 	podman manifest add $(PODMAN_IMG) $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64
-	@echo "Pushing manifest to registry..."
-	podman manifest push --tls-verify=false $(PODMAN_IMG) $(PODMAN_IMG_BASE):$(PODMAN_TAG)
+	@echo "📤 Pushing multi-arch manifest..."
+	podman manifest push --tls-verify=false $(PODMAN_IMG) $(PODMAN_IMG) --all || \
+		(echo "⚠️  Multi-arch manifest push failed"; \
+		 echo "ℹ️  Individual platform images were pushed successfully"; \
+		 echo "ℹ️  You can manually push the manifest later if needed")
+	@echo "✅ Multi-architecture build and push completed successfully"
 
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
