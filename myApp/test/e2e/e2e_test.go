@@ -97,7 +97,9 @@ var _ = Describe("Manager", Ordered, func() {
 		specReport := CurrentSpecReport()
 		if specReport.Failed() {
 			By("Fetching Deployment status")
-			cmd := exec.Command("kubectl", "get", "deployment", "-l", "control-plane=controller-manager", "-n", namespace, "-o", "yaml")
+			cmd := exec.Command("kubectl", "get", "deployment",
+				"-l", "control-plane=controller-manager",
+				"-n", namespace, "-o", "yaml")
 			deploymentOutput, err := utils.Run(cmd)
 			if err == nil {
 				_, _ = fmt.Fprintf(GinkgoWriter, "Deployment status:\n%s", deploymentOutput)
