@@ -194,7 +194,7 @@ func (r *MyAppReconciler) reconcileDeployment(ctx context.Context, myApp *eighth
 			},
 		}
 
-		deployment.Spec.Template.ObjectMeta.Labels = map[string]string{
+		deployment.Spec.Template.Labels = map[string]string{
 			"app":   "nginx",
 			"myapp": myApp.Name,
 		}

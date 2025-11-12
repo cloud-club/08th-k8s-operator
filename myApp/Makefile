@@ -50,7 +50,7 @@ endif
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.41.1
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= cloud-club-cr.kr.ncr.ntruss.com/controller:latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -61,25 +61,16 @@ endif
 
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
-# scaffolded by default. However, you might want to replace it to use other
-# tools. (i.e. podman)
+# scaffolded by default.
 CONTAINER_TOOL ?= docker
-
-# PODMAN_IMG defines the podman image URL for multi-arch builds
-# Defaults to cloud-club-cr.kr.ncr.ntruss.com/nginx-system:latest
-PODMAN_IMG_BASE ?= cloud-club-cr.kr.ncr.ntruss.com/nginx-system
-PODMAN_TAG ?= latest
-PODMAN_IMG ?= $(PODMAN_IMG_BASE):$(PODMAN_TAG)
-
-# PODMAN_BUILD_ARGS defines additional arguments for podman build commands
-# --tls-verify=false for registries, --pull=always to ensure fresh images
-# Note: Internal Go module TLS verification is handled in Podmanfile with GOINSECURE
-PODMAN_BUILD_ARGS ?= --tls-verify=false --pull=always
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
+
+# Delete intermediate files on error
+.DELETE_ON_ERROR:
 
 .PHONY: all
 all: build
@@ -182,70 +173,38 @@ docker-build: ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build -t ${IMG} .
 
 .PHONY: docker-push
-docker-push: ## Push docker image with the manager.
+docker-push: ## Push docker image with the manager. Example: make docker-push IMG=cloud-club-cr.kr.ncr.ntruss.com/controller:latest
 	$(CONTAINER_TOOL) push ${IMG}
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
-# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
+# architectures. (i.e. make docker-buildx IMG=cloud-club-cr.kr.ncr.ntruss.com/controller:latest). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
 # - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-# - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
+# - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=cloud-club-cr.kr.ncr.ntruss.com/<TARGET_IMAGE[:TAG]> then the export will fail)
 # To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
-PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
+PLATFORMS ?= linux/amd64,linux/arm64
 .PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the manager for cross-platform support
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name learn-builder
+docker-buildx: ## Build and push docker image for the manager for multi-arch support (amd64, arm64)
+	# Dockerfile already contains --platform directives, so just copy it as-is
+	cp Dockerfile Dockerfile.cross
+	@if $(CONTAINER_TOOL) buildx inspect learn-builder >/dev/null 2>&1; then \
+		echo "Builder 'learn-builder' already exists, using it..."; \
+	else \
+		echo "Creating builder 'learn-builder'..."; \
+		$(CONTAINER_TOOL) buildx create --name learn-builder || true; \
+	fi
 	$(CONTAINER_TOOL) buildx use learn-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm learn-builder
-	rm Dockerfile.cross
-
-##@ Podman Build & Push
-
-.PHONY: podman-build
-podman-build: ## Build podman image with the manager using Podmanfile.
-	podman build $(PODMAN_BUILD_ARGS) -t ${IMG} -f Podmanfile .
-
-.PHONY: podman-push
-podman-push: ## Push podman image with the manager.
-	podman push --tls-verify=false ${IMG}
-
-.PHONY: podman-buildx
-podman-buildx: ## Build and push podman image for the manager for multi-arch support (amd64, arm64)
-	@echo "🏗️  Starting multi-architecture build (amd64/arm64)..."
-	# Clean up existing images and manifests
-	@echo "🧹 Cleaning up existing images and manifests..."
-	- podman manifest exists $(PODMAN_IMG) && podman manifest rm $(PODMAN_IMG) || true
-	- podman rmi $(PODMAN_IMG) || true
-	- podman rmi $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 || true
-	- podman rmi $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 || true
-	# Create manifest for multi-architecture image
-	podman manifest create $(PODMAN_IMG)
-	# Build for each platform with timeout protection
-	@echo "📦 Building amd64 image..."
-	podman build $(PODMAN_BUILD_ARGS) --platform linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 --build-arg TARGETOS=linux --build-arg TARGETARCH=amd64 --tag $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64 -f Podmanfile .
-	@echo "📦 Building arm64 image..."
-	podman build $(PODMAN_BUILD_ARGS) --platform linux/arm64 --build-arg BUILDPLATFORM=linux/arm64 --build-arg TARGETPLATFORM=linux/arm64 --build-arg TARGETOS=linux --build-arg TARGETARCH=arm64 --tag $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 -f Podmanfile .
-	# Push individual platform images with retry logic
-	@echo "📤 Pushing amd64 image..."
-	podman push --tls-verify=false --retry=3 --retry-delay=5s --compression-format=gzip --compression-level=6 $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64
-	@echo "📤 Pushing arm64 image..."
-	podman push --tls-verify=false --retry=3 --retry-delay=5s --compression-format=gzip --compression-level=6 $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64 || \
-		(echo "⚠️  arm64 push failed after 3 attempts"; \
-		 echo "ℹ️  amd64 image was pushed successfully"; \
-		 echo "ℹ️  You can manually push arm64 image later if needed")
-	# Add to manifest and push manifest
-	@echo "🔗 Creating multi-arch manifest..."
-	podman manifest add $(PODMAN_IMG) $(PODMAN_IMG_BASE):$(PODMAN_TAG)-amd64
-	podman manifest add $(PODMAN_IMG) $(PODMAN_IMG_BASE):$(PODMAN_TAG)-arm64
-	@echo "📤 Pushing multi-arch manifest..."
-	podman manifest push --tls-verify=false $(PODMAN_IMG) $(PODMAN_IMG) --all || \
-		(echo "⚠️  Multi-arch manifest push failed"; \
-		 echo "ℹ️  Individual platform images were pushed successfully"; \
-		 echo "ℹ️  You can manually push the manifest later if needed")
-	@echo "✅ Multi-architecture build and push completed successfully"
+	@if echo "${IMG}" | grep -q '/'; then \
+		echo "Building and pushing to registry: ${IMG}"; \
+		$(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .; \
+	else \
+		echo "ERROR: Multi-platform builds require a registry path for IMG."; \
+		echo "Current IMG value: ${IMG}"; \
+		echo "Please set IMG to a registry path, for example:"; \
+		echo "  make docker-buildx IMG=cloud-club-cr.kr.ncr.ntruss.com/controller:latest"; \
+		exit 1; \
+	fi
+	-rm -f Dockerfile.cross
 
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
@@ -295,7 +254,7 @@ KIND ?= kind
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
