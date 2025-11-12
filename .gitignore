@@ -26,3 +26,7 @@ go.work
 *.swo
 *~
 .DS_Store
+
+# myApp
+myApp/bin/
+myApp/dist/
