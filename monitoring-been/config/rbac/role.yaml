@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - cleanup.cloudclub.com
+  resources:
+  - cleanuppolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cleanup.cloudclub.com
+  resources:
+  - cleanuppolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cleanup.cloudclub.com
+  resources:
+  - cleanuppolicies/status
+  verbs:
+  - get
+  - patch
+  - update

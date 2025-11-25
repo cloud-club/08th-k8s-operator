@@ -1,0 +1,256 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: cleanuppolicies.cleanup.cloudclub.com
+spec:
+  group: cleanup.cloudclub.com
+  names:
+    kind: CleanupPolicy
+    listKind: CleanupPolicyList
+    plural: cleanuppolicies
+    singular: cleanuppolicy
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.dryRun
+      name: DryRun
+      type: boolean
+    - jsonPath: .status.lastExecutionTime
+      name: Last Execution
+      type: date
+    - jsonPath: .status.cleanedUp
+      name: Cleaned Up
+      type: integer
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CleanupPolicy is the Schema for the cleanuppolicies API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CleanupPolicySpec defines the desired state of CleanupPolicy.
+            properties:
+              dryRun:
+                default: false
+                description: DryRun mode - if true, only log actions woithout actual
+                  deletion
+                type: boolean
+              excludeNamespaces:
+                default:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                description: Namespaces to exclude from cleanup
+                items:
+                  type: string
+                type: array
+              includeNamespaces:
+                description: Namespaces to include (empty means all namespaces)
+                items:
+                  type: string
+                type: array
+              podPolicies:
+                description: Pod cleanup policies
+                properties:
+                  enabled:
+                    default: true
+                    description: Enable pod cleanup
+                    type: boolean
+                  failedPods:
+                    description: Clean up failed pods (CrashLoopBackOff etc.)
+                    properties:
+                      enabled:
+                        default: true
+                        description: Enable failed pod cleanup
+                        type: boolean
+                      minAge:
+                        default: 3h
+                        description: 'Minimum age before cleanup (duration format:
+                          1h, 24h, 7d)'
+                        type: string
+                      states:
+                        default:
+                        - CrashLoopBackOff
+                        - ImagePullBackOff
+                        - Pending
+                        - Error
+                        - Evicted
+                        - Failed
+                        description: Status to clean up
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  idelPods:
+                    description: Clean up idle pods (low resource usage)
+                    properties:
+                      cpuTresholdPercent:
+                        description: CPU Usage threshold percentage (e.g. 10 means
+                          < 10%)
+                        type: integer
+                      enabled:
+                        default: true
+                        description: Enable idle pod cleanup
+                        type: boolean
+                      idleDuration:
+                        default: 14d
+                        description: Dration pod must be idle before cleanup (e.g.
+                          14d)
+                        type: string
+                      memoryTresholdPercent:
+                        default: 15
+                        description: Memory Usage treshold percentage
+                        type: integer
+                    type: object
+                type: object
+              pvPolicies:
+                description: PersistentVolume cleanup policies
+                properties:
+                  minAge:
+                    default: 14d
+                    description: Minimum age for unused PVs (e.g. "14d")
+                    type: string
+                  states:
+                    description: Only clean PVs in these states
+                    items:
+                      type: string
+                    type: array
+                  "true":
+                    default: true
+                    description: Enable PV cleanup
+                    type: boolean
+                type: object
+              requireApproval:
+                default: false
+                description: RequireApproval - if true, mart resources for deletion
+                  but wait for manual approval
+                type: boolean
+              schedule:
+                default: 0 6 * * *
+                type: string
+            type: object
+          status:
+            description: CleanupPolicyStatus defines the observed state of CleanupPolicy
+            properties:
+              cleanedUp:
+                description: Total resources cleaned up
+                type: integer
+              conditions:
+                description: Conditions represet the latest available observations
+                  of an object's state
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              lastExecutionTime:
+                description: Last execution time
+                format: date-time
+                type: string
+              nextExecutionTome:
+                description: Next scheduled execution time
+                format: date-time
+                type: string
+              pendingApproval:
+                description: Resources pending approval
+                items:
+                  description: PendingResource represents a resource waiting for approval
+                  properties:
+                    kind:
+                      description: Resource type (Pod, PV, etc.)
+                      type: string
+                    markedAt:
+                      description: Time marked for cleanup
+                      format: date-time
+                      type: string
+                    name:
+                      description: Resource name
+                      type: string
+                    namespace:
+                      description: Resource namespace
+                      type: string
+                    reason:
+                      description: Reason for cleanup
+                      type: string
+                  required:
+                  - kind
+                  - markedAt
+                  - name
+                  - reason
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

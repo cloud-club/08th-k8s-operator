@@ -1,0 +1,52 @@
+apiVersion: cleanup.cloudclub.com/v1alpha1
+kind: CleanupPolicy
+metadata:
+  labels:
+    app.kubernetes.io/name: monitoring-been
+    app.kubernetes.io/managed-by: kustomize
+  name: cleanuppolicy-sample
+spec:
+  # 매일 새벽 2시에 실행
+  schedule: "0 2 * * *"
+
+  # Dry-run 모드 (처음에는 true로 테스트)
+  dryRun: true
+
+  # 수동 승인 필요 여부
+  requireApproval: false
+
+  # 제외할 네임스페이스
+  excludeNamespaces:
+    - kube-system
+    - kube-public
+    - kube-node-lease
+    - default
+
+  # Pod 정리 정책
+  podPolicies:
+    enabled: true
+
+    # 실패한 Pod 정리
+    failedPods:
+      enabled: true
+      states:
+        - CrashLoopBackOff
+        - Error
+        - Evicted
+        - Failed
+      minAge: "1h" # 실패 후 1시간 경과한 Pod
+
+    # IDLE Pod 정리
+    idlePods:
+      enabled: true
+      cpuThresholdPercent: 10 # CPU 사용률 10% 미만
+      memoryThresholdPercent: 15 # Memory 사용률 15% 미만
+      idleDuration: "7d" # 7일 이상 IDLE 상태
+
+  # PV 정리 정책
+  pvPolicies:
+    enabled: true
+    minAge: "30d" # 30일 이상 경과
+    states:
+      - Released # 바인딩 해제된 상태
+      - Available # 사용 가능하지만 미사용
