@@ -18,24 +18,44 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/robfig/cron/v3"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	cleanupv1alpha1 "github.com/cloud-club/08th-k8s-operator/monitoring-been/api/v1alpha1"
+	cleanupv1alpha1 "github.com/yourusername/k8s-resource-cleaner/api/v1alpha1"
 )
 
 // CleanupPolicyReconciler reconciles a CleanupPolicy object
 type CleanupPolicyReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Log logr.Logger
+
+	// Cron scheduler of managing cleanup schedules
+	cronScheduler *cron.Cron
+	cronEntires map[string]cron.EntryID
 }
+
+
 
 // +kubebuilder:rbac:groups=cleanup.cloudclub.com,resources=cleanuppolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cleanup.cloudclub.com,resources=cleanuppolicies/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=cleanup.cloudclub.com,resources=cleanuppolicies/finalizers,verbs=update
+
+// ### Added by Been
+// +kubebuilder:rbac:groups="",resources="pods",verb=get;list;watch;delete
+// +kubebuilder:rbac:groups="",resources="persistentvolumes",verb=get;list;watch;delete
+// +kubebuilder:rbac:groups="",resources=events,verb=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -50,6 +70,17 @@ func (r *CleanupPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	_ = logf.FromContext(ctx)
 
 	// TODO(user): your logic here
+	// Fatch the CleanupPolicy instance
+	policy := $cleanupv1alpha1.CleanupPolicy{}
+	err := r.Get(ctx, req.NamespacedName, policy)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("CleanupPolicy resource not found. Ignoring since object must be deleted.")
+			return ctrl.Result{}, nil
+		}
+		log.Error(err, "Failed to get CleanupPolicy")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
