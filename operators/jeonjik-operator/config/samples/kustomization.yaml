@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- v1_jeonjik.yaml
+- _v1_jeonjik.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
