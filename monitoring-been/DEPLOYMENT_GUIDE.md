@@ -57,10 +57,10 @@ make run
 #### 클러스터에 배포
 ```bash
 # Docker 이미지 빌드 및 푸시
-make docker-build docker-push IMG=<your-registry>/cleanup-operator:v1.0.0
+make docker-build docker-push IMG=quay.io/beengineer/cloudclub/cleanup-operator:v1.0.0
 
 # Operator 배포
-make deploy IMG=<your-registry>/cleanup-operator:v1.0.0
+make deploy IMG=quay.io/beengineer/cloudclub/cleanup-operator:v1.0.0
 
 # 배포 확인
 kubectl get deployment -n monitoring-been-system
