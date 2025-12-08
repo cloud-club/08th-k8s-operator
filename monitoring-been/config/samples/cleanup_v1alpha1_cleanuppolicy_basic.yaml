@@ -1,0 +1,52 @@
+apiVersion: cleanup.cloudclub.com/v1alpha1
+kind: CleanupPolicy
+metadata:
+  name: cleanuppolicy-basic
+spec:
+  # Schedule in cron format (daily at 6 AM KST)
+  schedule: "0 6 * * *"
+
+  # Dry run mode - set to true to test without actual deletion
+  dryRun: false
+
+  # Require manual approval before deletion
+  requireApproval: true
+
+  # Exclude system namespaces
+  excludeNamespaces:
+    - kube-system
+    - kube-public
+    - kube-node-lease
+    - default
+
+  # Pod cleanup policies
+  podPolicies:
+    enabled: true
+
+    # Clean up failed pods
+    failedPods:
+      enabled: true
+      states:
+        - CrashLoopBackOff
+        - ImagePullBackOff
+        - Pending
+        - Error
+        - Evicted
+        - Failed
+      minAge: "3h"  # Clean pods failed for more than 3 hours
+
+    # Note: Idle pod cleanup requires metrics-server
+    # Will be enabled in future version
+    idlePods:
+      enabled: false
+      cpuThresholdPercent: 80
+      memoryThresholdPercent: 80
+      idleDuration: "14d"
+
+  # PersistentVolume cleanup policies
+  pvPolicies:
+    enabled: true
+    minAge: "14d"  # Clean PVs older than 14 days
+    states:
+      - Released
+      - Available

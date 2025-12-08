@@ -36,21 +36,21 @@ type CleanupPolicySpec struct {
 
 	Schedule string `json:"schedule,omitempty"`
 
-	// DryRun mode - if true, only log actions woithout actual deletion
+	// DryRun mode - if true, only log actions without actual deletion
 	// +kubebuilder:default=false
 	DryRun bool `json:"dryRun,omitempty"`
 
-	// RequireApproval - if true, mart resources for deletion but wait for manual approval
+	// RequireApproval - if true, mark resources for deletion but wait for manual approval
 	// +kubebuilder:default=false
 	RequireApproval bool `json:"requireApproval,omitempty"`
-	
+
 	// Namespaces to include (empty means all namespaces)
 	// +optional
 	IncludeNamespaces []string `json:"includeNamespaces,omitempty"`
 
 	// Namespaces to exclude from cleanup
 	// +kubebuilder:default={"kube-system","kube-public","kube-node-lease"}
-	ExcludeNamspaces []string `json:"excludeNamespaces,omitempty"`
+	ExcludeNamespaces []string `json:"excludeNamespaces,omitempty"`
 
 	// Pod cleanup policies
 	// +optional
@@ -69,11 +69,11 @@ type PodCleanupPolicy struct {
 
 	// Clean up failed pods (CrashLoopBackOff etc.)
 	// +optional
-	FailePods *FailedPodPolicy `json:"failedPods,omitempty"`
+	FailedPods *FailedPodPolicy `json:"failedPods,omitempty"`
 
 	// Clean up idle pods (low resource usage)
 	// +optional
-	IdlePods *IdlePodPolicy `json:"idelPods,omitempty"`
+	IdlePods *IdlePodPolicy `json:"idlePods,omitempty"`
 }
 
 // FailedPodPolicy defines rules for failed pod cleanup
@@ -96,15 +96,15 @@ type IdlePodPolicy struct {
 	// +kubebuilder:default=true
 	Enabled bool `json:"enabled,omitempty"`
 
-	// CPU Usage threshold percentage (e.g. 10 means < 10%)
-	// +kubebuilder:defaults=10
-	CPUTresholdPercent int `json:"cpuTresholdPercent,omitempty"`
+	// CPU Usage threshold percentage (e.g. 80 means < 80%)
+	// +kubebuilder:default=80
+	CPUThresholdPercent int `json:"cpuThresholdPercent,omitempty"`
 
-	// Memory Usage treshold percentage
-	// +kubebuilder:default=15
-	MemoryTresholdPercent int `json:"memoryTresholdPercent,omitempty"`
+	// Memory Usage threshold percentage
+	// +kubebuilder:default=80
+	MemoryThresholdPercent int `json:"memoryThresholdPercent,omitempty"`
 
-	// Dration pod must be idle before cleanup (e.g. 14d)
+	// Duration pod must be idle before cleanup (e.g. 14d)
 	// +kubebuilder:default="14d"
 	IdleDuration string `json:"idleDuration,omitempty"`
 }
@@ -130,7 +130,7 @@ type CleanupPolicyStatus struct {
 	LastExecutionTime *metav1.Time `json:"lastExecutionTime,omitempty"`
 
 	// Next scheduled execution time
-	NextExecutionTime *metav1.Time `json:"nextExecutionTome,omitempty"`
+	NextExecutionTime *metav1.Time `json:"nextExecutionTime,omitempty"`
 
 	// Total resources cleaned up
 	CleanedUp int `json:"cleanedUp,omitempty"`

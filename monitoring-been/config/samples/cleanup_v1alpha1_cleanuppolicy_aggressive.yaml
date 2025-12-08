@@ -1,0 +1,38 @@
+apiVersion: cleanup.cloudclub.com/v1alpha1
+kind: CleanupPolicy
+metadata:
+  name: cleanuppolicy-aggressive
+spec:
+  # Run twice daily (6 AM and 6 PM)
+  schedule: "0 6,18 * * *"
+
+  # Aggressive mode - no dry run, no approval needed
+  dryRun: false
+  requireApproval: false
+
+  # Exclude only critical namespaces
+  excludeNamespaces:
+    - kube-system
+    - kube-public
+
+  # Pod cleanup policies
+  podPolicies:
+    enabled: true
+
+    failedPods:
+      enabled: true
+      states:
+        - CrashLoopBackOff
+        - ImagePullBackOff
+        - Error
+        - Evicted
+        - Failed
+      minAge: "1h"  # Aggressive: clean after 1 hour
+
+  # PersistentVolume cleanup policies
+  pvPolicies:
+    enabled: true
+    minAge: "7d"  # Aggressive: clean after 7 days
+    states:
+      - Released
+      - Available

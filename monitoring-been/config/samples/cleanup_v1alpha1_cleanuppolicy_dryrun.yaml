@@ -1,0 +1,37 @@
+apiVersion: cleanup.cloudclub.com/v1alpha1
+kind: CleanupPolicy
+metadata:
+  name: cleanuppolicy-dryrun
+spec:
+  # Test schedule - every 5 minutes for testing
+  schedule: "*/5 * * * *"
+
+  # Dry run mode - only log, don't delete
+  dryRun: true
+  requireApproval: false
+
+  # Test on specific namespace
+  includeNamespaces:
+    - test
+    - dev
+
+  # Pod cleanup policies
+  podPolicies:
+    enabled: true
+
+    failedPods:
+      enabled: true
+      states:
+        - CrashLoopBackOff
+        - ImagePullBackOff
+        - Error
+        - Failed
+      minAge: "30m"  # Short for testing
+
+  # PersistentVolume cleanup policies
+  pvPolicies:
+    enabled: true
+    minAge: "1d"  # Short for testing
+    states:
+      - Released
+      - Available

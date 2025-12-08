@@ -51,7 +51,7 @@ spec:
             properties:
               dryRun:
                 default: false
-                description: DryRun mode - if true, only log actions woithout actual
+                description: DryRun mode - if true, only log actions without actual
                   deletion
                 type: boolean
               excludeNamespaces:
@@ -100,12 +100,13 @@ spec:
                           type: string
                         type: array
                     type: object
-                  idelPods:
+                  idlePods:
                     description: Clean up idle pods (low resource usage)
                     properties:
-                      cpuTresholdPercent:
-                        description: CPU Usage threshold percentage (e.g. 10 means
-                          < 10%)
+                      cpuThresholdPercent:
+                        default: 80
+                        description: CPU Usage threshold percentage (e.g. 80 means
+                          < 80%)
                         type: integer
                       enabled:
                         default: true
@@ -113,12 +114,12 @@ spec:
                         type: boolean
                       idleDuration:
                         default: 14d
-                        description: Dration pod must be idle before cleanup (e.g.
+                        description: Duration pod must be idle before cleanup (e.g.
                           14d)
                         type: string
-                      memoryTresholdPercent:
-                        default: 15
-                        description: Memory Usage treshold percentage
+                      memoryThresholdPercent:
+                        default: 80
+                        description: Memory Usage threshold percentage
                         type: integer
                     type: object
                 type: object
@@ -141,7 +142,7 @@ spec:
                 type: object
               requireApproval:
                 default: false
-                description: RequireApproval - if true, mart resources for deletion
+                description: RequireApproval - if true, mark resources for deletion
                   but wait for manual approval
                 type: boolean
               schedule:
@@ -216,7 +217,7 @@ spec:
                 description: Last execution time
                 format: date-time
                 type: string
-              nextExecutionTome:
+              nextExecutionTime:
                 description: Next scheduled execution time
                 format: date-time
                 type: string
