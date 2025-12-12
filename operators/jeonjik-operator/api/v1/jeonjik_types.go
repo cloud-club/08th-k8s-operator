@@ -28,14 +28,18 @@ type JeonjikSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Jeonjik. Edit jeonjik_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	SpecType string `json:"specType"`
 }
 
 // JeonjikStatus defines the observed state of Jeonjik.
 type JeonjikStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	CPU    string `json:"cpu,omitempty"`
+	Memory string `json:"memory,omitempty"`
+	OS     string `json:"os,omitempty"`
+	GPU    string `json:"gpu,omitempty"`
+	Ready  bool   `json:"ready,omitempty"`
 }
 
 // +kubebuilder:object:root=true

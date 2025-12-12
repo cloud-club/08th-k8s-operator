@@ -52,6 +52,45 @@ func (r *JeonjikReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// TODO(user): your logic here
 	log.Info("▶ Reconcile triggered!", "name", req.NamespacedName)
 
+	var cr ccpcroomkrv1.Jeonjik
+	if err := r.Get(ctx, req.NamespacedName, &cr); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	specTypes := map[string]struct {
+		CPU    string
+		Memory string
+		OS     string
+		GPU    string
+	}{
+		"slave-jiwon":  {"2c", "2m", "ubuntu-24", "0"},
+		"seoksa-jiwon": {"3c", "3m", "ubuntu-24", "0"},
+		"baksa-jiwon":  {"4c", "4m", "ubuntu-24", "0"},
+		"h100-jjaegii": {"4c", "4m", "rocky-9", "4gpu"}, "l40s-jjaegii": {"8c", "8m", "rocky-9", "8gpu"},
+		"moon0-potato": {"4c", "4m", "ubuntu-24", "0"},
+	}
+
+	// check specType exists
+	spec, exists := specTypes[cr.Spec.SpecType]
+	if !exists {
+		log.Info("Unknown specType", "specType", cr.Spec.SpecType)
+		return ctrl.Result{}, nil
+	}
+
+	// update status
+	cr.Status.CPU = spec.CPU
+	cr.Status.Memory = spec.Memory
+	cr.Status.OS = spec.OS
+	cr.Status.GPU = spec.GPU
+	cr.Status.Ready = true
+
+	if err := r.Status().Update(ctx, &cr); err != nil {
+		log.Error(err, "Failed to update Jeonjik status")
+		return ctrl.Result{}, err
+	}
+
+	log.Info("Jeonjik status updated", "name", cr.Name)
+
 	return ctrl.Result{}, nil
 }
 

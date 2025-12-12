@@ -39,13 +39,27 @@ spec:
           spec:
             description: JeonjikSpec defines the desired state of Jeonjik.
             properties:
-              foo:
-                description: Foo is an example field of Jeonjik. Edit jeonjik_types.go
-                  to remove/update
+              specType:
                 type: string
+            required:
+            - specType
             type: object
           status:
             description: JeonjikStatus defines the observed state of Jeonjik.
+            properties:
+              cpu:
+                description: |-
+                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+                  Important: Run "make" to regenerate code after modifying this file
+                type: string
+              gpu:
+                type: string
+              memory:
+                type: string
+              os:
+                type: string
+              ready:
+                type: boolean
             type: object
         type: object
     served: true

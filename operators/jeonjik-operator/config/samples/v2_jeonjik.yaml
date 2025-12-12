@@ -1,0 +1,9 @@
+apiVersion: cc-pc-room.kr/v1
+kind: Jeonjik
+metadata:
+  labels:
+    app.kubernetes.io/name: jeonjik-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: jeonjik-sample
+spec:
+  specType: "slave-jiwon"
