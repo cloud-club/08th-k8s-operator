@@ -39,6 +39,7 @@ import (
 
 	ccpcroomkrv1 "github.com/cloud-club/08th-k8s-operator/operators/jeonjik-operator/api/v1"
 	"github.com/cloud-club/08th-k8s-operator/operators/jeonjik-operator/internal/controller"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,6 +52,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(ccpcroomkrv1.AddToScheme(scheme))
+	utilruntime.Must(kubevirtv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
